@@ -28,7 +28,7 @@
 
 #### WGS
 * Install dependencies
-* Open Jupyter notebook ``aglB_genome_sequencing.ipynb'' in Anaconda navigator by clicking ``root > open with Jupyter notebook''
+* Open Jupyter notebook "aglB_genome_sequencing.ipynb" in Anaconda navigator by clicking "root > open with Jupyter notebook"
 * Run the notebook using the fastq data file in the data folder
 
 #### Growth data
