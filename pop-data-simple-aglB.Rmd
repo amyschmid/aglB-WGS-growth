@@ -1,0 +1,217 @@
+---
+title: "pop-growth-simple-aglB"
+output: html_document
+---
+
+---
+title: "Pop_growth_simple_AV"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# This code takes high throughput microbial growth data from a Bioscreen C instrument, calculates growth rate and stats, and plots the data.
+
+## First upload the data and set up the functions
+
+### Prepare coding environment
+```{r}
+# fresh start
+rm(list = ls())
+
+# load required libraries
+library(plyr)
+library(tidyr)
+library(dplyr)
+library(tibble)
+library(viridis)
+library(ggplot2)
+library(tinytex)
+library(latexpdf)
+library(data.table)
+```
+
+### Import the data
+```{r}
+## read in metadata file. Change directory to data file as needed.
+mt<-read.csv('~/data/20190215_aglB_repeat_key_AKS.csv', sep =",", header = TRUE)
+
+mt0 <- mt[-1, -(1:2)]
+
+## read in datafile
+dt <- read.csv('~/data/20190215_aglB_repeat.csv', sep = ",", header=FALSE, fileEncoding="UTF-16LE")
+        
+dt0 <- dt[-(1:2), -2]
+colnames(dt0) <- c('time', dt0[1, -1])
+dt0 <- dt0[-1, ]
+```
+
+### Prepare the data
+
+```{r}
+## extract hours, mins, secs from the time column, convert to decimal format
+hou <-
+  as.numeric(lapply(strsplit(as.character(dt0$time), ':'), '[[', 1))
+min <-
+  as.numeric(lapply(strsplit(as.character(dt0$time), ':'), '[[', 2))
+sec <-
+  as.numeric(lapply(strsplit(as.character(dt0$time), ':'), '[[', 3))
+## set total time to hours
+dt0$time <- (hou) + min / 60 + (sec / 3600)
+```
+
+```{r}
+# melt the dataframe to long format
+m_dt <- melt(dt0, id = 'time')
+## bring together the metadata and data files into one data frame
+mtdt <- merge(m_dt, mt0, by = 'variable')
+
+```
+
+```{r}
+#Remove blanks
+mtdt <- subset (mtdt, !strain == "blank")
+mtdt <- subset (mtdt, !media == "5M_CM_uracil")
+#time cutoff for later use in calculating growth rates
+t_mtdt <- mtdt[!(mtdt$time <= 10 | mtdt$time >= 30), ]
+head(t_mtdt)
+```
+
+
+### Calculate some statistics
+```{r}
+
+## summarize all values (get the mean value of growth curve over time for each strain across bioreps, media)
+tb_mtdt<- ddply(mtdt, c( 'time',  'strain'),
+                plyr::summarise,
+                value_mn = mean(value),
+                value_sd = sd(value))
+head(tb_mtdt)
+
+#summarize values within the 0.5 - 30 hour window, average across techreps but not bioreps
+tb_mtdt_reps<- ddply(t_mtdt, c( 'time',  'strain', 'biorep'),
+                plyr::summarise,
+              value_mn = mean(value),
+               value_sd = sd(value))
+head(tb_mtdt_reps)
+```
+
+### Plot average curves with sd for Figure 4A, Zaretsky et al.
+```{r}
+ggplot(tb_mtdt, aes(x=time, y=value_mn, group=strain, colour = strain))+
+  theme_minimal()+
+  labs(x="Time (hours)", y="OD600")+
+  scale_y_log10(limits=c(0.1, 1))+
+  geom_line(stat="smooth",method = "loess",# formula = y~x,
+              size = 1 )+
+  geom_line(aes(x=time, y = (value_mn-value_sd)),
+              stat="smooth",method = "loess",# formula = y~x,
+              size = 3,
+              alpha = 0.2) +
+   geom_line(aes(x=time, y = (value_mn+value_sd)),
+              stat="smooth", method = "loess",# formula = y~x,
+              size = 3,
+              alpha = 0.2) +
+  scale_color_manual(values=c(ura3="black",aglB = "blue"))
+```
+
+### Calculate growth rates
+```{r}
+
+#log transform the summarized data, 10-30 h window
+tb_mtdt_reps$log <- log2(tb_mtdt_reps$value_mn)
+
+#make separate data frames for each strain, biorep
+ura<-subset (tb_mtdt_reps, tb_mtdt_reps$strain == "ura3")
+aglB<-subset (tb_mtdt_reps, tb_mtdt_reps$strain == "aglB" )
+ura.a<-subset (ura, biorep == "A")
+ura.b<-subset (ura, biorep == "B")
+ura.c<-subset (ura, biorep == "C")
+ura.d<-subset (ura, biorep == "D")
+ura.e<-subset (ura, biorep == "E")
+
+aglB.a<-subset (aglB, biorep == "A")
+aglB.b<-subset (aglB, biorep == "B")
+aglB.c<-subset (aglB, biorep == "C")
+aglB.d<-subset (aglB, biorep == "D")
+aglB.e<-subset (aglB, biorep == "E")
+
+#find the slope from the linear model fit to the data for first biorep of ura3 as a test
+slope.uraA<-lm(ura.a$log ~ ura.a$time)
+summary (slope.uraA)
+uraA.coefs<-slope.uraA$coefficients
+
+#see https://feliperego.github.io/blog/2015/10/23/Interpreting-Model-Output-In-R for interpretation of lm summary
+
+#So far, this suggests that a simple linear model fits the exponential phase well: growth rate of 0.08 / h is ~11.8 hr doubling time. Also R2 is 0.99. 
+```
+
+### Calculate growth rates using simple linear model for all bioreps, each strain
+```{r}
+slope.uraB<-lm(ura.b$log ~ ura.b$time)
+uraB.coefs<-slope.uraB$coefficients
+
+slope.uraC<-lm(ura.c$log ~ ura.c$time)
+uraC.coefs<-slope.uraC$coefficients
+
+slope.uraD<-lm(ura.d$log ~ ura.d$time)
+uraD.coefs<-slope.uraD$coefficients
+
+slope.uraE<-lm(ura.e$log ~ ura.e$time)
+uraE.coefs<-slope.uraE$coefficients
+
+slope.aglBA<-lm(aglB.a$log ~ aglB.a$time)
+aglBA.coefs<-slope.aglBA$coefficients
+
+slope.aglBB<-lm(aglB.b$log ~ aglB.b$time)
+aglBB.coefs<-slope.aglBB$coefficients
+
+slope.aglBC<-lm(aglB.c$log ~ aglB.c$time)
+aglBC.coefs<-slope.aglBC$coefficients
+
+slope.aglBD<-lm(aglB.d$log ~ aglB.d$time)
+aglBD.coefs<-slope.aglBD$coefficients
+
+slope.aglBE<-lm(aglB.e$log ~ aglB.e$time)
+aglBE.coefs<-slope.aglBE$coefficients
+
+all.lm.coefs<-as.data.frame(cbind(uraA.coefs,uraB.coefs,uraC.coefs,uraD.coefs,uraE.coefs,aglBA.coefs,aglBB.coefs,aglBC.coefs, aglBD.coefs, aglBE.coefs))
+rownames(all.lm.coefs)<-c("Intercept", "slope")
+
+#make a table out of all the linear model coefficient values
+all.lm.coefs<-as.data.frame(t(all.lm.coefs))
+
+#set the row names as a column variable
+setDT(all.lm.coefs, keep.rownames = "strain.rep")
+
+```
+
+### plot slopes (growth rates) for final figure 4B
+```{r}
+#set up the data frame
+all.lm.coefs$strain<- c("ura3", "ura3", "ura3","ura3","ura3", "aglB", "aglB","aglB","aglB","aglB")
+mean.rates<-ddply (all.lm.coefs, c('strain'), plyr::summarise, mean.slope = mean(slope), sd.slope = sd(slope) )
+
+# plot the summary stats
+ggplot(data = mean.rates, aes(x = strain, y = mean.slope, fill = strain) ) +
+  xlab('strain') + 
+  ylab('growth rate (per h)')+
+  geom_bar(stat='identity', width = 0.5) +
+  theme_minimal() +
+  geom_errorbar(aes(ymin=mean.slope - sd.slope, ymax=mean.slope + sd.slope), width=0.1,
+              position=position_dodge(.9)) +
+  scale_fill_manual("strain", values = c(ura3 = "grey", aglB = "blue")) + 
+  scale_x_discrete(limits=c("ura3", "aglB"))
+```
+
+### Are the differences in growth significant?
+```{r}
+ura.coefs<-subset (all.lm.coefs, strain == "ura3")
+agl.coefs<-subset (all.lm.coefs, strain == "aglB")
+t.test (ura.coefs$slope, agl.coefs$slope, paired = FALSE)
+
+#yes, the means of the two samples are significantly different.
+```
