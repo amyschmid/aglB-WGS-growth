@@ -3,8 +3,7 @@
 ### Corresponds to the paper "N-glycosylation is required for archaellin transcription and translation, archaella assembly and cell motility in _Halobacterium salinarum_" by Marianna Zaretsky, Cynthia L. Darnell, Amy K. Schmid, and Jerry Eichler.
 
 ### Dependencies
-#### Click on the links below for downloads, documentation, and dependencies of each package
-
+#### Click on the links below for downloads, documentation, and dependencies 
 #### Whole genome sequencing (WGS) dependencies
 * Python v 2.7
 * [Anaconda](https://docs.anaconda.com/anaconda/install/) 
