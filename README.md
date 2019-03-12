@@ -34,4 +34,5 @@
 * Install dependencies using the command 'install.packages()'
 * Open Rmd file 
 * Run the file using csv data and metadata files in the data folder
+* Supplementary Table S2 (given here in the ~/data folder) from Zaretsky et al resulted from code up to line 83 in Rmd file.
 
