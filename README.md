@@ -9,7 +9,7 @@
 * [Anaconda](https://docs.anaconda.com/anaconda/install/) 
 * [FastQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/) for quality control.
 * [TrimGalore!](https://www.bioinformatics.babraham.ac.uk/projects/trim_galore/) for trimming adaptors.
-* [breseq](http://barricklab.org/twiki/pub/Lab/ToolsBacterialGenomeResequencing/documentation/index.html) for read mapping and analysis of mutations.
+* [breseq]v 0.32.1(http://barricklab.org/twiki/pub/Lab/ToolsBacterialGenomeResequencing/documentation/index.html) for read mapping and analysis of mutations.
      * breseq publication: Deatherage, D.E., Barrick, J.E. (2014) Identification of mutations in laboratory-evolved microbes from next-generation sequencing data using breseq. Methods Mol. Biol. 1151: 165–188. 
     
 #### Growth data calculation dependencies
