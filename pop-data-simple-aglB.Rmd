@@ -1,6 +1,10 @@
 ---
 title: "pop-growth-simple-aglB"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
+editor_options: 
+  chunk_output_type: console
 ---
 
 ---
@@ -71,10 +75,25 @@ mtdt <- merge(m_dt, mt0, by = 'variable')
 
 ```
 
+### Prepare the data for calculating statistics, export to supplementary table.
 ```{r}
-#Remove blanks
-mtdt <- subset (mtdt, !strain == "blank")
+#remove data not relevant to the current study
 mtdt <- subset (mtdt, !media == "5M_CM_uracil")
+
+#subtract blanks
+#mtdt.strains <- subset(mtdt, strain == "ura3" | strain =="aglB") 
+#mtdt.blanks<-subset(mtdt, strain == "blank")
+#mtdt.bsub<-mtdt.strains$value - mean(mtdt.blanks$value)
+#correct for pathlength difference between bioscreen and a typically cuvette-based spec
+
+#remove blanks
+mtdt <- subset (mtdt, !strain == "blank")
+mtdt.path<-mtdt$value*2.44
+
+mtdt$value.corr<-mtdt.path
+
+#Make supplementary table S2
+write.table (mtdt[ c(-1,-4)], file = "Zaretsky.ST2.txt", sep = "\t", row.names = FALSE, col.names = c("time (hrs)", "OD600", "strain", "medium", "biorep", "techrep", "OD600.corrected"))
 #time cutoff for later use in calculating growth rates
 t_mtdt <- mtdt[!(mtdt$time <= 10 | mtdt$time >= 30), ]
 head(t_mtdt)
@@ -87,15 +106,15 @@ head(t_mtdt)
 ## summarize all values (get the mean value of growth curve over time for each strain across bioreps, media)
 tb_mtdt<- ddply(mtdt, c( 'time',  'strain'),
                 plyr::summarise,
-                value_mn = mean(value),
-                value_sd = sd(value))
+                value_mn = mean(value.corr),
+                value_sd = sd(value.corr))
 head(tb_mtdt)
 
 #summarize values within the 0.5 - 30 hour window, average across techreps but not bioreps
 tb_mtdt_reps<- ddply(t_mtdt, c( 'time',  'strain', 'biorep'),
                 plyr::summarise,
-              value_mn = mean(value),
-               value_sd = sd(value))
+              value_mn = mean(value.corr),
+               value_sd = sd(value.corr))
 head(tb_mtdt_reps)
 ```
 
@@ -104,7 +123,7 @@ head(tb_mtdt_reps)
 ggplot(tb_mtdt, aes(x=time, y=value_mn, group=strain, colour = strain))+
   theme_minimal()+
   labs(x="Time (hours)", y="OD600")+
-  scale_y_log10(limits=c(0.1, 1))+
+  scale_y_log10(limits=c(0.2, 3.0))+
   geom_line(stat="smooth",method = "loess",# formula = y~x,
               size = 1 )+
   geom_line(aes(x=time, y = (value_mn-value_sd)),
@@ -189,7 +208,7 @@ setDT(all.lm.coefs, keep.rownames = "strain.rep")
 
 ```
 
-### plot slopes (growth rates) for final figure 4B
+### plot slopes (growth rates)
 ```{r}
 #set up the data frame
 all.lm.coefs$strain<- c("ura3", "ura3", "ura3","ura3","ura3", "aglB", "aglB","aglB","aglB","aglB")
@@ -213,5 +232,5 @@ ura.coefs<-subset (all.lm.coefs, strain == "ura3")
 agl.coefs<-subset (all.lm.coefs, strain == "aglB")
 t.test (ura.coefs$slope, agl.coefs$slope, paired = FALSE)
 
-#yes, the means of the two samples are significantly different.
+#yes, the means of the two samples are significantly different. These p-values are reported in the manuscript text.
 ```
